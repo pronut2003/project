@@ -45,12 +45,13 @@ pipeline {
             }
         }
 
+        
+        
         stage('Deploy to EC2') {
             steps {
                 withCredentials([sshUserPrivateKey(credentialsId: 'ec2key', keyFileVariable: 'KEYFILE')]) {
-                    sh '''
-        ssh -o StrictHostKeyChecking=no -i $KEYFILE ec2-user@54.242.252.217 << 'EOF'
-
+                    sh """
+        ssh -o StrictHostKeyChecking=no -i $KEYFILE ec2-user@54.242.252.217 '
         docker pull pranat2004/fastapi-backend:latest
         docker pull pranat2004/react-frontend:latest
 
@@ -62,9 +63,8 @@ pipeline {
 
         docker run -d -p 8000:8000 --name backend pranat2004/fastapi-backend:latest
         docker run -d -p 80:80 --name frontend pranat2004/react-frontend:latest
-
-        EOF
-        '''
+        '
+        """
                 }
             }
         }
