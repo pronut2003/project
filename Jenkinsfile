@@ -13,7 +13,7 @@ pipeline {
         stage('Build Backend Image') {
             steps {
                 dir('backend') {
-                    bat 'docker build -t %BACKEND_IMAGE%:latest .'
+                    sh 'docker build -t $BACKEND_IMAGE:latest .'
                 }
             }
         }
@@ -21,7 +21,7 @@ pipeline {
         stage('Build Frontend Image') {
             steps {
                 dir('frontend') {
-                    bat 'docker build -t %FRONTEND_IMAGE%:latest .'
+                    sh 'docker build -t $FRONTEND_IMAGE:latest .'
                 }
             }
         }
@@ -33,15 +33,15 @@ pipeline {
                     usernameVariable: 'USER',
                     passwordVariable: 'PASS'
                 )]) {
-                    bat 'echo %PASS% | docker login -u %USER% --password-stdin'
+                    sh 'echo $PASS | docker login -u $USER --password-stdin'
                 }
             }
         }
 
         stage('Push Images') {
             steps {
-                bat 'docker push %BACKEND_IMAGE%:latest'
-                bat 'docker push %FRONTEND_IMAGE%:latest'
+                sh 'docker push $BACKEND_IMAGE:latest'
+                sh 'docker push $FRONTEND_IMAGE:latest'
             }
         }
 
@@ -52,25 +52,22 @@ pipeline {
                     keyFileVariable: 'KEYFILE'
                 )]) {
 
-                    bat """
-                    copy %KEYFILE% C:\\jenkins_key.pem
+                    sh '''
+                    cp $KEYFILE ~/jenkins_key.pem
+                    chmod 400 ~/jenkins_key.pem
 
-                    icacls C:\\jenkins_key.pem /inheritance:r
-                    icacls C:\\jenkins_key.pem /grant:r SYSTEM:R
-                    icacls C:\\jenkins_key.pem /grant:r Administrators:R
+                    ssh -o StrictHostKeyChecking=no -i ~/jenkins_key.pem ec2-user@$EC2_IP docker pull $BACKEND_IMAGE:latest
+                    ssh -o StrictHostKeyChecking=no -i ~/jenkins_key.pem ec2-user@$EC2_IP docker pull $FRONTEND_IMAGE:latest
 
-                    ssh -o StrictHostKeyChecking=no -i C:\\jenkins_key.pem ec2-user@%EC2_IP% docker pull %BACKEND_IMAGE%:latest
-                    ssh -o StrictHostKeyChecking=no -i C:\\jenkins_key.pem ec2-user@%EC2_IP% docker pull %FRONTEND_IMAGE%:latest
+                    ssh -o StrictHostKeyChecking=no -i ~/jenkins_key.pem ec2-user@$EC2_IP "docker stop backend || true"
+                    ssh -o StrictHostKeyChecking=no -i ~/jenkins_key.pem ec2-user@$EC2_IP "docker stop frontend || true"
 
-                    ssh -o StrictHostKeyChecking=no -i C:\\jenkins_key.pem ec2-user@%EC2_IP% docker stop backend  true
-                    ssh -o StrictHostKeyChecking=no -i C:\\jenkins_key.pem ec2-user@%EC2_IP% docker stop frontend  true
+                    ssh -o StrictHostKeyChecking=no -i ~/jenkins_key.pem ec2-user@$EC2_IP "docker rm backend || true"
+                    ssh -o StrictHostKeyChecking=no -i ~/jenkins_key.pem ec2-user@$EC2_IP "docker rm frontend || true"
 
-                    ssh -o StrictHostKeyChecking=no -i C:\\jenkins_key.pem ec2-user@%EC2_IP% docker rm backend  true
-                    ssh -o StrictHostKeyChecking=no -i C:\\jenkins_key.pem ec2-user@%EC2_IP% docker rm frontend  true
-
-                    ssh -o StrictHostKeyChecking=no -i C:\\jenkins_key.pem ec2-user@%EC2_IP% docker run -d -p 8000:8000 --name backend %BACKEND_IMAGE%:latest
-                    ssh -o StrictHostKeyChecking=no -i C:\\jenkins_key.pem ec2-user@%EC2_IP% docker run -d -p 80:80 --name frontend %FRONTEND_IMAGE%:latest
-                    """
+                    ssh -o StrictHostKeyChecking=no -i ~/jenkins_key.pem ec2-user@$EC2_IP docker run -d -p 8000:8000 --name backend $BACKEND_IMAGE:latest
+                    ssh -o StrictHostKeyChecking=no -i ~/jenkins_key.pem ec2-user@$EC2_IP docker run -d -p 80:80 --name frontend $FRONTEND_IMAGE:latest
+                    '''
                 }
             }
         }
