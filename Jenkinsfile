@@ -47,7 +47,7 @@ pipeline {
 
         stage('Deploy to EC2') {
             steps {
-                withCredentials([sshUserPrivateKey(credentialsId: 'ec2-key', keyFileVariable: 'KEYFILE')]) {
+                withCredentials([sshUserPrivateKey(credentialsId: 'ec2key', keyFileVariable: 'KEYFILE')]) {
                     sh '''
                     ssh -o StrictHostKeyChecking=no -i $KEYFILE ec2-user@54.242.252.217 << EOF
                     docker pull pranat2004/fastapi-backend:latest
