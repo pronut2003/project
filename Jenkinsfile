@@ -47,26 +47,21 @@ pipeline {
 
         stage('Deploy to EC2') {
             steps {
-                withCredentials([sshUserPrivateKey(
-                    credentialsId: 'ec2key',
-                    keyFileVariable: 'KEYFILE'
-                )]) {
-
+                withCredentials([sshUserPrivateKey(credentialsId: 'ec2-key', keyFileVariable: 'KEYFILE')]) {
                     sh '''
-                    cp $KEYFILE ~/jenkins_key.pem
-                    chmod 400 ~/jenkins_key.pem
+                    ssh -o StrictHostKeyChecking=no -i $KEYFILE ec2-user@54.242.252.217 << EOF
+                    docker pull pranat2004/fastapi-backend:latest
+                    docker pull pranat2004/react-frontend:latest
 
-                    ssh -o StrictHostKeyChecking=no -i ~/jenkins_key.pem ec2-user@$EC2_IP docker pull $BACKEND_IMAGE:latest
-                    ssh -o StrictHostKeyChecking=no -i ~/jenkins_key.pem ec2-user@$EC2_IP docker pull $FRONTEND_IMAGE:latest
+                    docker stop backend || true
+                    docker stop frontend || true
 
-                    ssh -o StrictHostKeyChecking=no -i ~/jenkins_key.pem ec2-user@$EC2_IP "docker stop backend || true"
-                    ssh -o StrictHostKeyChecking=no -i ~/jenkins_key.pem ec2-user@$EC2_IP "docker stop frontend || true"
+                    docker rm backend || true
+                    docker rm frontend || true
 
-                    ssh -o StrictHostKeyChecking=no -i ~/jenkins_key.pem ec2-user@$EC2_IP "docker rm backend || true"
-                    ssh -o StrictHostKeyChecking=no -i ~/jenkins_key.pem ec2-user@$EC2_IP "docker rm frontend || true"
-
-                    ssh -o StrictHostKeyChecking=no -i ~/jenkins_key.pem ec2-user@$EC2_IP docker run -d -p 8000:8000 --name backend $BACKEND_IMAGE:latest
-                    ssh -o StrictHostKeyChecking=no -i ~/jenkins_key.pem ec2-user@$EC2_IP docker run -d -p 80:80 --name frontend $FRONTEND_IMAGE:latest
+                    docker run -d -p 8000:8000 --name backend pranat2004/fastapi-backend:latest
+                    docker run -d -p 80:80 --name frontend pranat2004/react-frontend:latest
+                    EOF
                     '''
                 }
             }
